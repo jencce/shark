@@ -14,13 +14,16 @@ cmdsock.bind(('',7778))
 cmdsock.listen(5)
 cs,caddr = cmdsock.accept()
 while True:
-	cmdstr = cs.recv(10)
+	cmdstr = cs.recv(12)
 	if cmdstr[0:6] == 'qwe123':
 		break
 	time.sleep(2)
 
 print cmdstr
-idstring = "lasd"
+
+idstring = cmdstr[cmdstr.find("+")+1:]
+
+cs.close()
 
 sersock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sersock.bind(('',7777))
@@ -31,10 +34,13 @@ for cs in cmdstrings:
 	ns = cs + idstring
 	print ns
 	ret = os.system(ns)
+	ret = 0
 	if ret != 0:
 		print ns+"  error"
 		exit()
 	
+	fs = ns[ns.find("/tmp"):]
+	print fs
 	fn = open('/tmp/sar')
 	while True:
 		data = fn.read(1024)

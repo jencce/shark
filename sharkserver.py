@@ -1,9 +1,15 @@
 #! /usr/bin/env python
 import socket
 
+idstring = raw_input("input 4 charactors request idstring:")
+while len(idstring) != 4:
+	idstring = raw_input("input 4 charactors request idstring:")
+	
+
 cmdsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 cmdsock.connect(('127.0.0.1',7778))
-cmdsock.send('qwe123hust')
+cmdsock.send("qwe123+"+idstring)
+cmdsock.close()
 
 cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 cs.connect(('127.0.0.1',7777))
