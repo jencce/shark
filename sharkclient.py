@@ -41,7 +41,7 @@ for cs in cmdstrings:
 	
 	fs = ns[ns.find("/tmp"):]
 	print fs
-	fn = open('/tmp/sar')
+	fn = open(fs)
 	while True:
 		data = fn.read(1024)
 		if not data:
