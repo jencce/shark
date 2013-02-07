@@ -9,49 +9,55 @@ cmdstrings = "sar -n DEV 1 10 > /tmp/sarnDEV-", \
 			 "sar -P ALL 1 10 > /tmp/sarPALL-",	\
 			 "vmstat 1 10 > /tmp/vmstat-"
 
-cmdsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-cmdsock.bind(('',7778))
-cmdsock.listen(5)
-cs,caddr = cmdsock.accept()
+listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+listen_sock.bind(('',7778))
+listen_sock.listen(5)
+cmd_sock,caddr = listen_sock.accept()
 while True:
-	cmdstr = cs.recv(12)
+	cmdstr = cmd_sock.recv(12)
 	if cmdstr[0:6] == 'qwe123':
 		break
-	time.sleep(2)
 
 print cmdstr
 
 idstring = cmdstr[cmdstr.find("+")+1:]
 
-cs.close()
+cmd_sock.close()
 
-sersock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sersock.bind(('',7777))
-sersock.listen(5)
-ds,daddr = sersock.accept()
+listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+listen_sock.bind(('',7777))
+listen_sock.listen(5)
+data_sock,daddr = listen_sock.accept()
 
-for cs in cmdstrings:
-	ns = cs + idstring
-	print ns
-	ret = os.system(ns)
-	ret = 0
+for cmdstring in cmdstrings:
+	cmds = cmdstring + idstring
+	print cmds
+	ret = os.system(cmds)
 	if ret != 0:
-		print ns+"  error"
+		print cmds+"  error"
+		data_sock.close()
 		exit()
 	
-	fs = ns[ns.find("/tmp"):]
-	print fs
-	fn = open(fs)
+	file_name = cmds[cmds.find("/tmp"):]
+	print file_name
+
+	sended = data_sock.send("SHARK"+file_name)
+	if sended != (len(file_name) + 5):
+		print "send file name failed"
+		exit()
+	time.sleep(2)
+	
+	open_file = open(file_name)
 	while True:
-		data = fn.read(1024)
+		data = open_file.read(1024)
 		if not data:
 			break
 		while len(data) > 0:
-			sended = ds.send(data)
+			sended = data_sock.send(data)
 			data = data[sended:]
 	
 	time.sleep(2)
-	ds.send('EOF')
-	fn.close()
+	data_sock.send('EOF')
+	open_file.close()
 	
-ds.close()
+data_sock.close()
