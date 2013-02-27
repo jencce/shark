@@ -8,6 +8,8 @@
 import socket
 import time
 import os
+import string
+from datetime import datetime
 
 # cmd strings needed to execute on client machines
 #
@@ -23,7 +25,10 @@ cmdstrings = "sar -n DEV 1 10 > /tmp/sarnDEV-", \
 def getidstr():
 	os.system('hostname > /tmp/hn')
 	hnfile = open('/tmp/hn')
-	host_name = hnfile.readline()
+	host_name = string.rstrip(hnfile.readline(), '\n')
+	hnfile.close()
+
+	dtstr = datetime.strftime(datetime.now(), '-%y%m%d_%H%M%S-')
 
 	listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	listen_sock.bind(('',7778))
@@ -39,7 +44,9 @@ def getidstr():
 	
 	cmd_sock.close()
 	listen_sock.close()
-	return cmdstr[cmdstr.find("+")+1:] + host_name
+
+	idstr = cmdstr[cmdstr.find("+")+1:] + dtstr + host_name 
+	return idstr
 
 
 # listen socket 2 to accept data connection
@@ -54,7 +61,7 @@ def sendfiles(idstring):
 	#
 	for cmdstring in cmdstrings:
 		cmds = cmdstring + idstring
-		print cmds
+		print 'executing ' + cmds
 		ret = os.system(cmds)
 		if ret != 0:
 			print cmds+"  error"
@@ -62,8 +69,8 @@ def sendfiles(idstring):
 			listen_sock2.close()
 			exit()
 		
-		file_name = cmds[cmds.find("/tmp"):]
-		print file_name
+		file_name = cmds[cmds.find("/tmp")+5:]
+		print 'fn: '+file_name
 	
 		# send magic and filename
 		#
@@ -77,7 +84,7 @@ def sendfiles(idstring):
 		
 		# loops to send file data
 		#
-		open_file = open(file_name)
+		open_file = open('/tmp/' + file_name)
 		while True:
 			data = open_file.read(1024)
 			if not data:
@@ -101,7 +108,8 @@ if __name__ == '__main__':
 		if len(idstr) <= 0:
 			print 'get idstr failed'
 			exit()
-		
+
+		print 'idstr '+idstr
 		sendfiles(idstr)
 
 

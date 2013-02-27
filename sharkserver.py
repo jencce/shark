@@ -6,6 +6,7 @@
 #
 import socket
 import time
+import os
 
 # get requestid string from user to uniq this request
 # for result file storage
@@ -56,8 +57,7 @@ def recvfiles(clientip):
 	
 		# recv file name with magic "SHARK"
 		#
-		raw_file_name = datasock.recv(48)
-		print raw_file_name
+		raw_file_name = datasock.recv(100)
 		if raw_file_name.find("SHARK") != -1:
 			file_name = raw_file_name[raw_file_name.find("SHARK")+5:]
 			print "newfs " + file_name
@@ -69,7 +69,8 @@ def recvfiles(clientip):
 		# create new file ,recv data with results
 		# write file
 		#
-		openfile = open("/tmp"+file_name, 'w')
+		os.system('mkdir -p /tmp/SHARK/')
+		openfile = open('/tmp/SHARK/'+file_name, 'w')
 		while True:
 			data = datasock.recv(1024)
 			if data == 'EOF':
