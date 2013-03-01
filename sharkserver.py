@@ -36,7 +36,7 @@ def readconf():
 #
 def sendmagic(clientip, idstr):
 	cmdsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	cmdsock.connect((clientip,7778)) # TOD
+	cmdsock.connect((clientip,7778)) # TOD if conn failed returen smth
 	cmdsock.send("qwe123+"+idstr)
 	cmdsock.close()
 
@@ -98,7 +98,8 @@ if __name__ == "__main__":
 
 	while client_ip_list.__len__():
 		client_ip = client_ip_list.pop() 
-		sendmagic(client_ip, idstr)
+		print client_ip
+		sendmagic(client_ip, idstr)  #check return
 		time.sleep(2)
 		recvfiles(client_ip)
 

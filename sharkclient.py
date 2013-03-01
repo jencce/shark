@@ -10,6 +10,7 @@ import time
 import os
 import string
 from datetime import datetime
+import threading
 
 # cmd strings needed to execute on client machines
 #
@@ -18,6 +19,41 @@ cmdstrings = "sar -n DEV 1 10 > /tmp/sarnDEV-", \
 			 "sar -B 1 10 > /tmp/sarB-",	\
 			 "sar -P ALL 1 10 > /tmp/sarPALL-",	\
 			 "vmstat 1 10 > /tmp/vmstat-"
+
+# multithreads to run cmds, like sar -P ALL ..
+# this is the class to implmt multirhread
+#
+class shark_thread(threading.Thread):
+	cmdstring = ""
+	
+	def __init__(self, cs):
+		threading.Thread.__init__(self)
+		self.cmdstring = cs
+	
+	def run(self):
+		if self.cmdstring == "":
+			print 'cmdstring null exit'
+			exit()
+
+		ret = os.system(self.cmdstring)
+		if ret != 0:
+			print 'system exe error'
+			exit()
+
+
+# execute cmds on client machine multithread way
+#
+def execute_perf_cmds(idstr):
+	sthreads = {}
+	for cs in cmdstrings:
+		cmdstring = cs + idstr
+		print 'executing ' + cmdstring
+
+		sthreads[cs] = shark_thread(cmdstring)
+		sthreads[cs].start()
+
+	for cs in cmdstrings:
+		sthreads[cs].join
 
 # listen socket to accept cmd connection where get passwd 
 # and requestid.  if connection accepted, end blocking
@@ -51,24 +87,14 @@ def getidstr():
 
 # listen socket 2 to accept data connection
 #
-def sendfiles(idstring):
+def sendfiles(idstr):
 	listen_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	listen_sock2.bind(('',7777))
 	listen_sock2.listen(5)
 	data_sock,daddr = listen_sock2.accept()
 	
-	# execute cmds and send files
-	#
-	for cmdstring in cmdstrings:
-		cmds = cmdstring + idstring
-		print 'executing ' + cmds
-		ret = os.system(cmds)
-		if ret != 0:
-			print cmds+"  error"
-			data_sock.close()
-			listen_sock2.close()
-			exit()
-		
+	for cs in cmdstrings:
+		cmds = cs + idstr
 		file_name = cmds[cmds.find("/tmp")+5:]
 		print 'fn: '+file_name
 	
@@ -96,20 +122,24 @@ def sendfiles(idstring):
 		time.sleep(2)
 		data_sock.send('EOF')
 		open_file.close()
-		
+	
 	data_sock.close()
 	listen_sock2.close()
 
 
-if __name__ == '__main__':
-	
+def main():
 	while True:
 		idstr = getidstr();
 		if len(idstr) <= 0:
 			print 'get idstr failed'
 			exit()
-
 		print 'idstr '+idstr
+
+		# execute cmds and send files
+		execute_perf_cmds(idstr)
+	
+		# send cmd-result files to server
 		sendfiles(idstr)
 
-
+if __name__ == '__main__':
+	main()
