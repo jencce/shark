@@ -58,7 +58,7 @@ def execute_perf_cmds(idstr):
 # listen socket to accept cmd connection where get passwd 
 # and requestid.  if connection accepted, end blocking
 #
-def getidstr():
+def get_idstr():
 	os.system('hostname > /tmp/hn')
 	hnfile = open('/tmp/hn')
 	host_name = string.rstrip(hnfile.readline(), '\n')
@@ -87,7 +87,7 @@ def getidstr():
 
 # listen socket 2 to accept data connection
 #
-def sendfiles(idstr):
+def send_files(idstr):
 	listen_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	listen_sock2.bind(('',7777))
 	listen_sock2.listen(5)
@@ -129,7 +129,7 @@ def sendfiles(idstr):
 
 def main():
 	while True:
-		idstr = getidstr();
+		idstr = get_idstr();
 		if len(idstr) <= 0:
 			print 'get idstr failed'
 			exit()
@@ -139,7 +139,7 @@ def main():
 		execute_perf_cmds(idstr)
 	
 		# send cmd-result files to server
-		sendfiles(idstr)
+		send_files(idstr)
 
 if __name__ == '__main__':
 	main()
