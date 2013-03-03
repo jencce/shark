@@ -1,9 +1,6 @@
 #! /usr/bin/env python
 # SHARK server 
-#
-# execute on any machine, request to SHARK agents to get
-# performance data files 
-#
+# # execute on any machine, request to SHARK agents to get # performance data files #
 import socket
 import time
 import os
@@ -25,7 +22,10 @@ def read_conf():
 	for conf_item in config_file:
 		print conf_item,
 		find_clientip = conf_item.find("clientip")
-		if find_clientip != -1:
+		find_comment = conf_item.find("#")
+		if find_comment == 0:
+			continue
+		if find_clientip == 0:
 			client_ip_list = conf_item.split()
 			return client_ip_list
 
@@ -35,17 +35,23 @@ def read_conf():
 # passwd and requestid string as magic words
 #
 def send_magic(clientip, idstr):
-	cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	cmd_sock.connect((clientip,7778)) # TOD if conn failed returen smth
-	cmd_sock.send("qwe123+"+idstr)
-	cmd_sock.close()
+	try:
+		cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		cmd_sock.connect((clientip,7778)) # TOD if conn failed returen smth
+		cmd_sock.send("qwe123+"+idstr)
+		cmd_sock.close()
+	except socket.error as err:
+		print err
+		return -1
 
 
 # use data socket to recv result files
 #
 def recv_files(clientip):
-	data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	data_sock.connect((clientip,7777))
+	listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	listen_sock.bind(('',7777))
+	listen_sock.listen(5)
+	data_sock,daddr = listen_sock.accept()
 	
 	# if connected, file files to be recved each connection
 	#
@@ -79,7 +85,7 @@ def recv_files(clientip):
 		openfile.close()
 	
 	data_sock.close()
-	print client_ip + ' done'
+	print clientip + ' done'
 
 
 if __name__ == "__main__":
@@ -93,12 +99,25 @@ if __name__ == "__main__":
 
 	client_ip_list.reverse()
 	client_ip_list.pop()
-	print client_ip_list
 
-	while client_ip_list.__len__():
-		client_ip = client_ip_list.pop() 
-		print client_ip
-		send_magic(client_ip, idstr)  #check return
-		time.sleep(2)
-		recv_files(client_ip)
+	client_ip_tuple = tuple(client_ip_list)
+
+	retry = 10
+	for ip in client_ip_tuple:
+		print ip
+
+		ret = send_magic(ip, idstr)
+		#print 'sm ret',
+		#print ret
+		#if ret == -1 and retry > 0:
+		#	retry = retry - 1
+		#	continue
+		#else:
+		#		break
+		if ret == -1:
+			continue 
+			
+	for ip in client_ip_tuple:
+		print 'recving from' + ip
+		recv_files(ip)
 

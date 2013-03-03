@@ -20,10 +20,14 @@ cmdstrings = "sar -n DEV 1 10 > /tmp/sarnDEV-", \
 			 "sar -P ALL 1 10 > /tmp/sarPALL-",	\
 			 "vmstat 1 10 > /tmp/vmstat-"
 
+# shark server addr, get from listen
+#
+# server_addr = tuple()
+
 # multithreads to run cmds, like sar -P ALL ..
 # this is the class to implmt multirhread
 #
-class shark_thread(threading.Thread):
+class shark_client_thread(threading.Thread):
 	cmdstring = ""
 	
 	def __init__(self, cs):
@@ -49,11 +53,12 @@ def execute_perf_cmds(idstr):
 		cmdstring = cs + idstr
 		print 'executing ' + cmdstring
 
-		sthreads[cs] = shark_thread(cmdstring)
+		sthreads[cs] = shark_client_thread(cmdstring)
 		sthreads[cs].start()
 
 	for cs in cmdstrings:
-		sthreads[cs].join
+		sthreads[cs].join()
+	print 'end exec cmds'
 
 # listen socket to accept cmd connection where get passwd 
 # and requestid.  if connection accepted, end blocking
@@ -64,12 +69,17 @@ def get_idstr():
 	host_name = string.rstrip(hnfile.readline(), '\n')
 	hnfile.close()
 
-	dtstr = datetime.strftime(datetime.now(), '-%y%m%d_%H%M%S-')
+	dtstr = datetime.strftime(datetime.now(), '-%Y%m%d%H%M%S-')
 
 	listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	listen_sock.bind(('',7778))
 	listen_sock.listen(5)
-	cmd_sock,caddr = listen_sock.accept()
+	cmd_sock,cmd_addr = listen_sock.accept()
+	#print 'cmdaddr',
+	#print cmd_addr
+	server_addr = cmd_addr[0]
+	print 'server addr',
+	print server_addr
 	
 	# handshake to verify passwd # cmd socket to get cmd string
 	#
@@ -82,19 +92,20 @@ def get_idstr():
 	listen_sock.close()
 
 	idstr = cmdstr[cmdstr.find("+")+1:] + dtstr + host_name 
-	return idstr
+	rt_t = (idstr, server_addr)
+	return rt_t
 
 
 # listen socket 2 to accept data connection
 #
-def send_files(idstr):
-	listen_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	listen_sock2.bind(('',7777))
-	listen_sock2.listen(5)
-	data_sock,daddr = listen_sock2.accept()
+def send_files(idstr_sd_t):
+	data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	print 'idstr '+idstr_sd_t[0]
+	print 'sv ip '+idstr_sd_t[1]
+	data_sock.connect((idstr_sd_t[1], 7777)) # TOD if conn failed returen smth
 	
 	for cs in cmdstrings:
-		cmds = cs + idstr
+		cmds = cs + idstr_sd_t[0]
 		file_name = cmds[cmds.find("/tmp")+5:]
 		print 'fn: '+file_name
 	
@@ -104,7 +115,6 @@ def send_files(idstr):
 		if sended != (len(file_name) + 5):
 			print "send file name failed"
 			data_sock.close()
-			listen_sock2.close()
 			exit()
 		time.sleep(2)
 		
@@ -124,22 +134,26 @@ def send_files(idstr):
 		open_file.close()
 	
 	data_sock.close()
-	listen_sock2.close()
 
 
 def main():
 	while True:
-		idstr = get_idstr();
-		if len(idstr) <= 0:
+		get_t = []
+		get_t = get_idstr();
+		if len(get_t[0]) <= 0:
 			print 'get idstr failed'
 			exit()
-		print 'idstr '+idstr
+		#print 'idstr '+get_t[0]
+		#print 'sv ip '+get_t[1]
 
 		# execute cmds and send files
-		execute_perf_cmds(idstr)
+		execute_perf_cmds(get_t[0])
+		#print 'aft exe sd',
+		#print 'idstr '+get_t[0]
+		#print 'sv ip '+get_t[1]
 	
 		# send cmd-result files to server
-		send_files(idstr)
+		send_files(get_t)
 
 if __name__ == '__main__':
 	main()
