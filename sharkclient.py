@@ -110,7 +110,7 @@ def send_files(idstr_sd_t):
 		stat_rt = os.stat(cmds[cmds.find("/tmp"):])
 		file_size = stat_rt.st_size
 		print 'fn: '+file_name
-		print 'fine length {}'.format(file_size)
+		print 'file size{}'.format(file_size)
 	
 		if len(file_name) > 200:
 			print 'file name too long: ' + file_name
@@ -140,8 +140,9 @@ def send_files(idstr_sd_t):
 		time.sleep(2)
 		
 		sended = 0
-		magic_str2 = "SHARK2" + repr(len(file_size) + 1000000)
-		sended = data_sock.send(magic_str2)
+		magic_str2 = "SHARK2" + repr(file_size + 1000000)
+		print 'magic2 ' + string.rstrip(magic_str2, 'L')
+		sended = data_sock.send(string.rstrip(magic_str2, 'L'))
 		if sended != 13:
 			print "send magic2 failed"
 			data_sock.close()
@@ -153,7 +154,7 @@ def send_files(idstr_sd_t):
 		open_file = open('/tmp/' + file_name)
 		total_sended = 0
 		while True:
-			data = open_file.read(1024)
+			data = open_file.read(128)
 			if not data:
 				break
 			while len(data) > 0 and total_sended < file_size:
@@ -161,9 +162,10 @@ def send_files(idstr_sd_t):
 				data = data[sended:]
 				total_sended += sended
 		
-		time.sleep(2)
-		data_sock.send('EOF')
+		#time.sleep(2)
+		#data_sock.send('EOF')
 		open_file.close()
+		time.sleep(2)
 	
 	data_sock.close()
 

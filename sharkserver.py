@@ -165,14 +165,21 @@ def recv_files(file_cnt):
 			openfile = open('/tmp/SHARK/'+file_name, 'w')
 			recved = 0
 			while True:
-				data = data_sock.recv(1024)
+				data = data_sock.recv(128)
 				recved += len(data)
-				print 'data: {}, lenth {}'.format(data[0:2], len(data))
-				if data == 'EOF':
+				#print 'recvlenth {}, recved {}'.format(len(data), recved),
+				if recved > file_size:
+					extra_cnt = recved - file_size
+					end_index = len(data) - extra_cnt
+					openfile.write(data[0:end_index])
 					break
+
+				if recved == file_size:
+					break
+
+				#if data == 'EOF':
+				#	break
 				openfile.write(data)
-				if recved >= file_size:
-					break
 			
 			openfile.close()
 
