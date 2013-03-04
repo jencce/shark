@@ -107,13 +107,43 @@ def send_files(idstr_sd_t):
 	for cs in cmdstrings:
 		cmds = cs + idstr_sd_t[0]
 		file_name = cmds[cmds.find("/tmp")+5:]
+		stat_rt = os.stat(cmds[cmds.find("/tmp"):])
+		file_size = stat_rt.st_size
 		print 'fn: '+file_name
+		print 'fine length {}'.format(file_size)
 	
-		# send magic and filename
+		if len(file_name) > 200:
+			print 'file name too long: ' + file_name
+			continue
+
+		if file_size > 9000000:
+			print 'file size: {}'.format(file_size)
+			continue
+
+		# send magic and filename and filesize
 		#
-		sended = data_sock.send("SHARK"+file_name)
-		if sended != (len(file_name) + 5):
+		sended = 0
+		magic_str = "SHARK" + repr(len(file_name) + 100)
+		sended = data_sock.send(magic_str)
+		if sended != 8:
+			print "send magic failed"
+			data_sock.close()
+			exit()
+		time.sleep(2)
+		
+		sended = 0
+		sended = data_sock.send(file_name)
+		if sended != (len(file_name)):
 			print "send file name failed"
+			data_sock.close()
+			exit()
+		time.sleep(2)
+		
+		sended = 0
+		magic_str2 = "SHARK2" + repr(len(file_size) + 1000000)
+		sended = data_sock.send(magic_str2)
+		if sended != 13:
+			print "send magic2 failed"
 			data_sock.close()
 			exit()
 		time.sleep(2)
@@ -121,13 +151,15 @@ def send_files(idstr_sd_t):
 		# loops to send file data
 		#
 		open_file = open('/tmp/' + file_name)
+		total_sended = 0
 		while True:
 			data = open_file.read(1024)
 			if not data:
 				break
-			while len(data) > 0:
+			while len(data) > 0 and total_sended < file_size:
 				sended = data_sock.send(data)
 				data = data[sended:]
+				total_sended += sended
 		
 		time.sleep(2)
 		data_sock.send('EOF')
