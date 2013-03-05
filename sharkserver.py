@@ -8,7 +8,9 @@ import socket
 import time
 import os
 import re
-import string import threading
+import string 
+import threading
+import logging
 
 # get requestid string from user to uniq this request
 # for result file storage
@@ -47,6 +49,7 @@ def send_magic(clientip, idstr):
 		cmd_sock.close()
 	except socket.error as err:
 		print err
+		logging.error(repr(err))
 		return -1
 
 
@@ -107,6 +110,7 @@ class shark_server_thread(threading.Thread):
 	#
 	def sst_error(self, errstr):
 		print errstr
+		logging.error(errstr)
 		self.data_sock.close()
 		exit()	
 
@@ -129,6 +133,7 @@ class shark_server_thread(threading.Thread):
 			#
 			magic_str = self.data_sock.recv(8)
 			print 'magic_str ' + magic_str
+			logging.info('magic_str ' + magic_str)
 			if magic_str.find("SHARK") != -1:
 				file_name_len = string.atol(magic_str[5:]) - 100
 				print "file name len: {} ".format(file_name_len)
@@ -141,6 +146,7 @@ class shark_server_thread(threading.Thread):
 			#
 			raw_file_name = self.data_sock.recv(file_name_len)
 			print 'raw file name: ' + raw_file_name
+			logging.info('raw file name: ' + raw_file_name)
 			re_result = re.match(r'[a-zA-Z][._-a-z0-9A-Z]*', raw_file_name)
 			if re_result != None and len(re_result.string) != 0:
 				file_name = re_result.string
@@ -152,6 +158,7 @@ class shark_server_thread(threading.Thread):
 			#
 			magic_str2 = self.data_sock.recv(13)
 			print 'magic_str2 ' + magic_str2
+			logging.info('magic_str2 ' + magic_str2)
 			if magic_str2.find("SHARK2") != -1:
 				file_size = string.atol(magic_str2[6:]) - 1000000
 				print "file size: {} ".format(file_size)
@@ -174,6 +181,7 @@ class shark_server_thread(threading.Thread):
 					extra_cnt = recved - file_size
 					end_index = len(data) - extra_cnt
 					openfile.write(data[0:end_index])
+					logging.info('someth has been lost')
 					print 'someth has been lost'
 					break
 
@@ -204,7 +212,8 @@ def recv_files(file_cnt):
 		recv_threads[recv_cnt].start()
 		recv_cnt = recv_cnt + 1
 
-		print 'recv cnt {}'.format(recv_cnt)
+		print 'client {} accepted, recv cnt {}'.format(daddr[0],recv_cnt)
+		logging.info('client {} accepted, recv cnt {}'.format(daddr[0],recv_cnt))
 		#if recv_cnt == file_cnt:
 		#	break
 
@@ -214,6 +223,7 @@ def recv_files(file_cnt):
 		recv_cnt = recv_cnt + 1
 
 	listen_sock.close()
+	logging.info("recv files done")
 	print 'done'
 
 def main():
@@ -221,6 +231,7 @@ def main():
 
 	client_ip_list = read_conf()
 	if client_ip_list == None:
+		logging.error("read conf failed")
 		print 'read conf failed'
 		exit()
 
@@ -232,6 +243,7 @@ def main():
 	send_cnt = 0
 	for ip in client_ip_tuple:
 		print ip
+		logging.debug("send magic to {}".format(ip))
 		ret = send_magic(ip, idstr)
 		#print 'sm ret',
 		#print ret
@@ -241,13 +253,19 @@ def main():
 		#else:
 		#		break
 		if ret == -1:
+			logging.debug("send magic to {} failed".format(ip))
 			continue 
 		else:
 			send_cnt = send_cnt + 1
 			
 	print 'recving files'
+	logging.info("recving files")
 	recv_files(send_cnt)
 
 if __name__ == "__main__":
+	log_fmt = '%(process)d: %(asctime)s:%(levelname)s: %(pathname)s:\
+%(lineno)s: %(funcName)s:  %(message)s'
+	logging.basicConfig(filename='/home/zx/git/shark/sharkserver.log',\
+		format=log_fmt, level=logging.DEBUG)
 	main()
 

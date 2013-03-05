@@ -11,6 +11,7 @@ import os
 import string
 from datetime import datetime
 import threading
+import syslog
 
 # cmd strings needed to execute on client machines
 #
@@ -37,10 +38,12 @@ class shark_client_thread(threading.Thread):
 	def run(self):
 		if self.cmdstring == "":
 			print 'cmdstring null exit'
+			syslog.syslog(syslog.LOG_DEBUG, 'cmdstring null exit')
 			exit()
 
 		ret = os.system(self.cmdstring)
 		if ret != 0:
+			syslog.syslog(syslog.LOG_DEBUG, 'system exe error')
 			print 'system exe error'
 			exit()
 
@@ -52,6 +55,7 @@ def execute_perf_cmds(idstr):
 	for cs in cmdstrings:
 		cmdstring = cs + idstr
 		print 'executing ' + cmdstring
+		syslog.syslog(syslog.LOG_DEBUG, 'executing ' + cmdstring)
 
 		sthreads[cs] = shark_client_thread(cmdstring)
 		sthreads[cs].start()
@@ -59,6 +63,7 @@ def execute_perf_cmds(idstr):
 	for cs in cmdstrings:
 		sthreads[cs].join()
 	print 'end exec cmds'
+	syslog.syslog(syslog.LOG_DEBUG, 'exec cmds end')
 
 # listen socket to accept cmd connection where get passwd 
 # and requestid.  if connection accepted, end blocking
@@ -78,8 +83,6 @@ def get_idstr():
 	#print 'cmdaddr',
 	#print cmd_addr
 	server_addr = cmd_addr[0]
-	print 'server addr',
-	print server_addr
 	
 	# handshake to verify passwd 
 	# cmd socket to get cmd string
@@ -94,6 +97,8 @@ def get_idstr():
 
 	idstr = cmdstr[cmdstr.find("+")+1:] + '-' + host_name + '-' + dtstr 
 	rt_t = (idstr, server_addr)
+	syslog.syslog(syslog.LOG_DEBUG, 'get_idstr returned: ' + rt_t[0] \
+		+ rt_t[1])
 	return rt_t
 
 
@@ -101,6 +106,7 @@ def get_idstr():
 #
 def sf_error(errstr, data_sock):
 	print errstr
+	syslog.syslog(syslog.LOG_DEBUG, errstr)
 	data_sock.close()
 	exit()
 
@@ -111,8 +117,10 @@ def send_files(idstr_sd_t):
 	# use magic coming addr
 	#
 	data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	print 'idstr '+idstr_sd_t[0]
-	print 'sv ip '+idstr_sd_t[1]
+	print 'send_files beagin idstr: ' + idstr_sd_t[0] + 'server ip: ' + \
+	idstr_sd_t[1]
+	syslog.syslog(syslog.LOG_DEBUG, 'send_files beagin idstr: ' + \
+	idstr_sd_t[0] + 'server ip: ' + idstr_sd_t[1])
 	data_sock.connect((idstr_sd_t[1], 7777)) 
 	
 	# five files to transfer
@@ -131,14 +139,20 @@ def send_files(idstr_sd_t):
 		else:
 			sf_error('stat error', data_sock)
 
-		print 'fn: '+file_name
+		print 'file name: '+file_name
 		print 'file size ' + repr(file_size)
+		syslog.syslog(syslog.LOG_DEBUG, 'file name: '+file_name)
+		syslog.syslog(syslog.LOG_DEBUG, 'file size ' + repr(file_size))
 	
 		if len(file_name) > 200:
 			print 'file name too long: ' + file_name
+			syslog.syslog(syslog.LOG_DEBUG, 'file name too long: ' + \
+			file_name)
 			continue
 
 		if file_size > 9000000:
+			syslog.syslog(syslog.LOG_DEBUG, 'file size too big: ' + \
+			repr(file_size))
 			print 'file size too big: ' + repr(file_size)
 			continue
 
@@ -146,6 +160,7 @@ def send_files(idstr_sd_t):
 		#
 		sended = 0
 		magic_str = "SHARK" + repr(len(file_name) + 100)
+		syslog.syslog(syslog.LOG_DEBUG, magic_str + " magic str sending")
 		sended = data_sock.send(magic_str)
 		if sended != 8:
 			sf_error('send magic failed', data_sock)
@@ -156,6 +171,7 @@ def send_files(idstr_sd_t):
 		#
 		sended = 0
 		sended = data_sock.send(file_name)
+		syslog.syslog(syslog.LOG_DEBUG, file_name + " str sended")
 		if sended != (len(file_name)):
 			sf_error('send file name failed', data_sock)
 
@@ -166,6 +182,7 @@ def send_files(idstr_sd_t):
 		sended = 0
 		magic_str2 = "SHARK2" + repr(file_size + 1000000)
 		print 'magic2 ' + string.rstrip(magic_str2, 'L')
+		syslog.syslog(syslog.LOG_DEBUG, 'magic2 ' + string.rstrip(magic_str2, 'L'))
 		sended = data_sock.send(string.rstrip(magic_str2, 'L'))
 		if sended != 13:
 			sf_error('send magic2 failed', data_sock)
@@ -198,6 +215,7 @@ def main():
 		get_t = []
 		get_t = get_idstr();
 		if len(get_t[0]) <= 0:
+			syslog.syslog(syslog.LOG_DEBUG, "get idstr failed")
 			print 'get idstr failed'
 			exit()
 		#print 'idstr '+get_t[0]
@@ -214,4 +232,6 @@ def main():
 		send_files(get_t)
 
 if __name__ == '__main__':
+	syslog.openlog("SHARK", facility=syslog.LOG_USER)
 	main()
+	syslog.closelog()
