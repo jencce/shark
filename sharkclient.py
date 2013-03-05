@@ -69,7 +69,7 @@ def get_idstr():
 	host_name = string.rstrip(hnfile.readline(), '\n')
 	hnfile.close()
 
-	dtstr = datetime.strftime(datetime.now(), '-%Y%m%d%H%M%S-')
+	dtstr = datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')
 
 	listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	listen_sock.bind(('',7778))
@@ -91,7 +91,7 @@ def get_idstr():
 	cmd_sock.close()
 	listen_sock.close()
 
-	idstr = cmdstr[cmdstr.find("+")+1:] + dtstr + host_name 
+	idstr = cmdstr[cmdstr.find("+")+1:] + '-' + host_name + '-' + dtstr 
 	rt_t = (idstr, server_addr)
 	return rt_t
 
@@ -107,17 +107,25 @@ def send_files(idstr_sd_t):
 	for cs in cmdstrings:
 		cmds = cs + idstr_sd_t[0]
 		file_name = cmds[cmds.find("/tmp")+5:]
+
+		file_size = 0
 		stat_rt = os.stat(cmds[cmds.find("/tmp"):])
-		file_size = stat_rt.st_size
+		if stat_rt != None and stat_rt.st_size !=0:
+			file_size = stat_rt.st_size
+		else:
+			print 'stat error'
+			data_sock.close()
+			exit()
+
 		print 'fn: '+file_name
-		print 'file size{}'.format(file_size)
+		print 'file size ' + repr(file_size)
 	
 		if len(file_name) > 200:
 			print 'file name too long: ' + file_name
 			continue
 
 		if file_size > 9000000:
-			print 'file size: {}'.format(file_size)
+			print 'file size: ' + repr(file_size)
 			continue
 
 		# send magic and filename and filesize
@@ -165,7 +173,7 @@ def send_files(idstr_sd_t):
 		#time.sleep(2)
 		#data_sock.send('EOF')
 		open_file.close()
-		time.sleep(2)
+		time.sleep(5)
 	
 	data_sock.close()
 
