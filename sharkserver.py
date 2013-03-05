@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 # SHARK server 
-# # execute on any machine, request to SHARK agents to get # performance data files #
+# 
+# execute on any machine, request to SHARK agents to get 
+# performance data files 
+#
 import socket
 import time
 import os
 import re
-import string
-import threading
+import string import threading
 
 # get requestid string from user to uniq this request
 # for result file storage
@@ -40,7 +42,7 @@ def read_conf():
 def send_magic(clientip, idstr):
 	try:
 		cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		cmd_sock.connect((clientip,7778)) # TOD if conn failed returen smth
+		cmd_sock.connect((clientip,7778)) 
 		cmd_sock.send("qwe123+"+idstr)
 		cmd_sock.close()
 	except socket.error as err:
@@ -81,7 +83,7 @@ def old_recv_files(file_cnt):
 		openfile = open('/tmp/SHARK/'+file_name, 'w')
 		while True:
 			data = data_sock.recv(1024)
-			print 'data: {}, lenth {}'.format(data[0:2], len(data))
+		#	print 'data: {}, lenth {}'.format(data[0:2], len(data))
 			if data == 'EOF':
 				break
 			openfile.write(data)
@@ -94,10 +96,24 @@ def old_recv_files(file_cnt):
 # multithread recving files
 #
 class shark_server_thread(threading.Thread):
+	#
+	# socket to recv data as params
+	#
 	def __init__(self, data_sock):
 		threading.Thread.__init__(self)
 		self.data_sock = data_sock
+
+	# error handle function
+	#
+	def sst_error(self, errstr):
+		print errstr
+		self.data_sock.close()
+		exit()	
+
+	# take recv action
+	#
 	def run(self):
+		#
 		# if connected, file files to be recved each connection
 		#
 		file_counter = 5
@@ -109,7 +125,7 @@ class shark_server_thread(threading.Thread):
 			file_name_len = 0
 			file_size = 0
 		
-			# recv file name with magic "SHARK"
+			# recv file name len with magic "SHARK"
 			#
 			magic_str = self.data_sock.recv(8)
 			print 'magic_str ' + magic_str
@@ -117,15 +133,11 @@ class shark_server_thread(threading.Thread):
 				file_name_len = string.atol(magic_str[5:]) - 100
 				print "file name len: {} ".format(file_name_len)
 				if file_name_len == 0:
-					print "recv file name length failed"
-					self.data_sock.close()
-					exit()
+					self.sst_error('recv file name length failed')
 			else:
-				print "recv file name length failed"
-				self.data_sock.close()
-				exit()
+				self.sst_error('recv file name length failed')
 			
-			# recv file name with magic "SHARK"
+			# recv file name 
 			#
 			raw_file_name = self.data_sock.recv(file_name_len)
 			print 'raw file name: ' + raw_file_name
@@ -134,9 +146,7 @@ class shark_server_thread(threading.Thread):
 				file_name = re_result.string
 				print "newfs: " + file_name
 			else:
-				print "recv filename failed"
-				self.data_sock.close()
-				exit()
+				self.sst_error('recv file name failed')
 			
 			# recv file size with magic "SHARK2"
 			#
@@ -146,13 +156,9 @@ class shark_server_thread(threading.Thread):
 				file_size = string.atol(magic_str2[6:]) - 1000000
 				print "file size: {} ".format(file_size)
 				if file_size == 0:
-					print "recv file size failed"
-					self.data_sock.close()
-					exit()
+					self.sst_error('recv file size failed')
 			else:
-				print "recv file size failed"
-				self.data_sock.close()
-				exit()
+				self.sst_error('recv file size failed')
 			
 			# create new file ,recv data with results
 			# write file
@@ -168,6 +174,7 @@ class shark_server_thread(threading.Thread):
 					extra_cnt = recved - file_size
 					end_index = len(data) - extra_cnt
 					openfile.write(data[0:end_index])
+					print 'someth has been lost'
 					break
 
 				#if data == 'EOF':
@@ -190,7 +197,7 @@ def recv_files(file_cnt):
 	recv_cnt = 0
 	recv_threads = {}
 	while recv_cnt < file_cnt:
-		listen_sock.listen(15)
+		listen_sock.listen(128)
 		data_sock,daddr = listen_sock.accept()
 		
 		recv_threads[recv_cnt] = shark_server_thread(data_sock)

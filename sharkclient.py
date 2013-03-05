@@ -81,7 +81,8 @@ def get_idstr():
 	print 'server addr',
 	print server_addr
 	
-	# handshake to verify passwd # cmd socket to get cmd string
+	# handshake to verify passwd 
+	# cmd socket to get cmd string
 	#
 	while True:
 		cmdstr = cmd_sock.recv(12)
@@ -96,16 +97,31 @@ def get_idstr():
 	return rt_t
 
 
-# listen socket 2 to accept data connection
+# handle send_files error
+#
+def sf_error(errstr, data_sock):
+	print errstr
+	data_sock.close()
+	exit()
+
+# connect to server to send files
 #
 def send_files(idstr_sd_t):
+	#
+	# use magic coming addr
+	#
 	data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	print 'idstr '+idstr_sd_t[0]
 	print 'sv ip '+idstr_sd_t[1]
-	data_sock.connect((idstr_sd_t[1], 7777)) # TOD if conn failed returen smth
+	data_sock.connect((idstr_sd_t[1], 7777)) 
 	
+	# five files to transfer
+	#
 	for cs in cmdstrings:
 		cmds = cs + idstr_sd_t[0]
+		
+		# get file name and size, check
+		#
 		file_name = cmds[cmds.find("/tmp")+5:]
 
 		file_size = 0
@@ -113,9 +129,7 @@ def send_files(idstr_sd_t):
 		if stat_rt != None and stat_rt.st_size !=0:
 			file_size = stat_rt.st_size
 		else:
-			print 'stat error'
-			data_sock.close()
-			exit()
+			sf_error('stat error', data_sock)
 
 		print 'fn: '+file_name
 		print 'file size ' + repr(file_size)
@@ -125,36 +139,37 @@ def send_files(idstr_sd_t):
 			continue
 
 		if file_size > 9000000:
-			print 'file size: ' + repr(file_size)
+			print 'file size too big: ' + repr(file_size)
 			continue
 
-		# send magic and filename and filesize
+		# send magic and filename length 
 		#
 		sended = 0
 		magic_str = "SHARK" + repr(len(file_name) + 100)
 		sended = data_sock.send(magic_str)
 		if sended != 8:
-			print "send magic failed"
-			data_sock.close()
-			exit()
+			sf_error('send magic failed', data_sock)
+
 		time.sleep(2)
 		
+		# send filenme
+		#
 		sended = 0
 		sended = data_sock.send(file_name)
 		if sended != (len(file_name)):
-			print "send file name failed"
-			data_sock.close()
-			exit()
+			sf_error('send file name failed', data_sock)
+
 		time.sleep(2)
 		
+		# send magic and file size
+		#
 		sended = 0
 		magic_str2 = "SHARK2" + repr(file_size + 1000000)
 		print 'magic2 ' + string.rstrip(magic_str2, 'L')
 		sended = data_sock.send(string.rstrip(magic_str2, 'L'))
 		if sended != 13:
-			print "send magic2 failed"
-			data_sock.close()
-			exit()
+			sf_error('send magic2 failed', data_sock)
+
 		time.sleep(2)
 		
 		# loops to send file data
@@ -193,6 +208,7 @@ def main():
 		#print 'aft exe sd',
 		#print 'idstr '+get_t[0]
 		#print 'sv ip '+get_t[1]
+		time.sleep(2)
 	
 		# send cmd-result files to server
 		send_files(get_t)
