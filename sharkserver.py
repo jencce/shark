@@ -9,8 +9,10 @@ import os
 import re
 import threading
 import logging
+import time
 
 # get requestid string from user to uniq this request
+# and so is the cnt param
 # for result file storage
 # interactive or read config file
 #
@@ -20,7 +22,14 @@ def get_idstr():
     id_string = raw_input("input 4 chars request idstring:")
     while len(id_string) != 4:
         id_string = raw_input("input 4 chars request idstring:")
-    return id_string
+
+    cnt_string = raw_input("input counts of cmd repeat(less then 1000):")
+    while cnt_string.isdigit() != True or int(cnt_string) > 1000:
+        cnt_string = raw_input("input counts of cmd repeat(less then 1000):")
+
+    cnt_string = repr(int(cnt_string) + 1000)
+
+    return '{0}+{1}'.format(id_string, cnt_string)
 
 # read conf to get clientip list
 #
@@ -44,9 +53,9 @@ def read_conf():
 #
 def send_magic(clientip, idstr):
     '''send passwd and idstr to clients'''
-	# set socket timeout to 1 sec
-	# if conn failed, client dies, no other action
-	#
+    # set socket timeout to 1 sec
+    # if conn failed, client dies, no other action
+    #
     try:
         cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         cmd_sock.settimeout(1.0)
@@ -214,8 +223,22 @@ class SharkServerThread(threading.Thread):
 def recv_files(file_cnt):
     '''server func to recv files
        init a sst thread when connect comes'''
-    listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    listen_sock.bind(('', 7777))
+    retry = 10
+    while retry > 0:
+        try:
+            listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            listen_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listen_sock.bind(('', 7777))
+        except socket.error as err:
+            print err,
+            print ' :bind failed, retry'
+            logging.debug( repr(err) + ':bind failed, retry')
+            retry = retry - 1
+            time.sleep(1)
+            if retry == 0:
+                raise
+        else:
+            break
 
     recv_cnt = 0
     recv_threads = {}
@@ -247,17 +270,17 @@ def recv_files(file_cnt):
 def main():
     '''shark server main entry'''
 
-	# init log
+    # init log
     log_fmt = '%(process)d: %(asctime)s:%(levelname)s:%(funcName)s: %(message)s'
     log_file = '/home/zx/git/sharkserver.log'
     date_fmt = '%m%d-%H:%M:%S'
     logging.basicConfig(filename=log_file, format=log_fmt, level=logging.DEBUG, datefmt = date_fmt)
 
-	# get idstr
+    # get idstr
     idstr = get_idstr()
 
-	# read conf file to get ip tuple
-	#
+    # read conf file to get ip tuple
+    #
     client_ip_list = read_conf()
     if client_ip_list == None:
         logging.error("read conf failed")
@@ -269,7 +292,7 @@ def main():
     client_ip_tuple = tuple(client_ip_list)
 
     # send magic to shake hands with clients
-	#
+    #
     send_cnt = 0
     for ip_str in client_ip_tuple:
         print 'sending magic to ' + ip_str
@@ -285,7 +308,7 @@ def main():
             send_cnt = send_cnt + 1
 
     # prepare to recv files ahead
-	#
+    #
     print 'recving files... {}'.format(send_cnt)
     logging.info('recving files... {}'.format(send_cnt))
     recv_files(send_cnt)

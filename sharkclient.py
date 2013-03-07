@@ -14,12 +14,19 @@ import syslog
 
 # cmd strings needed to execute on client machines
 #
-CMD_STRINGS = "sar -n DEV 1 10 > /tmp/sarnDEV-", \
-             "iostat 1 10 > /tmp/iostat-",    \
-             "sar -B 1 10 > /tmp/sarB-",    \
-             "sar -P ALL 1 10 > /tmp/sarPALL-",    \
-             "vmstat 1 10 > /tmp/vmstat-"
+#CMD_STRINGS = "sar -n DEV 1 10 > /tmp/sarnDEV-", \
+#             "iostat 1 10 > /tmp/iostat-",    \
+#             "sar -B 1 10 > /tmp/sarB-",    \
+#             "sar -P ALL 1 10 > /tmp/sarPALL-",    \
+#             "vmstat 1 10 > /tmp/vmstat-"
+CMD_STRINGS = list()
 
+CMD_DKEY = "sar -n DEV", "iostat", "sar -B", "sar -P ALL", "vmstat"
+
+CMD_DVAL = "/tmp/sarnDEV-", "/tmp/iostat-", "/tmp/sarB-", "/tmp/sarPALL-",\
+            "/tmp/vmstat-"
+
+# shark server addr, get from listen
 # shark server addr, get from listen
 #
 # server_addr = tuple()
@@ -47,11 +54,28 @@ class SharkClientThread(threading.Thread):
             print 'system exe error'
             exit()
 
+# format cmd strings to execute in global var
+#
+def format_cmd_strings():
+    '''assemble the command'''
+    global CMD_DKEY
+    global CMD_DVAL
+    global CMD_STRINGS
+    global CMD_COUNT
+
+    CMD_STRINGS = list()
+    cmd_dict = dict(zip(CMD_DKEY, CMD_DVAL))
+    for cd_key in CMD_DKEY:
+        CMD_STRINGS.append('{0} 1 {1} > {2}'.format(cd_key, \
+    	repr(CMD_COUNT), cmd_dict[cd_key]))
+
+    print CMD_STRINGS
 
 # execute cmds on client machine multithread way
 #
 def execute_perf_cmds(idstr):
     '''to exec perf cmds'''
+    format_cmd_strings()
     sthreads = {}
     for cmds in CMD_STRINGS:
         cmdstring = cmds + idstr
@@ -91,17 +115,28 @@ def get_idstr():
     # cmd socket to get cmd string
     #
     while True:
-        cmdstr = cmd_sock.recv(12)
+        cmdstr = cmd_sock.recv(16)
         if cmdstr[0:6] == 'qwe123':
             break
     
     cmd_sock.close()
     listen_sock.close()
 
-    idstr = cmdstr[cmdstr.find("+")+1:] + '-' + host_name + '-' + dtstr 
+    print 'recved idstr: {0} from {1}'.format(cmdstr, server_addr)
+    syslog.syslog(syslog.LOG_DEBUG, 'recved idstr: {0} from {1}'.format(\
+    cmdstr, server_addr))
+
+    tmp_list = cmdstr.split('+')
+    if len(tmp_list) != 3:
+        print 'recved idstring error'
+        syslog.syslog(syslog.LOG_DEBUG, 'recved idstr error')
+    	exit()
+
+    idstr = tmp_list[1] + '-' + host_name + '-' + dtstr 
+    global CMD_COUNT
+    CMD_COUNT = int(tmp_list[2]) - 1000
+    #idstr = cmdstr[cmdstr.find("+")+1:] + '-' + host_name + '-' + dtstr 
     rt_t = (idstr, server_addr)
-    syslog.syslog(syslog.LOG_DEBUG, 'get_idstr returned: ' + rt_t[0] \
-        + rt_t[1])
     return rt_t
 
 
@@ -136,6 +171,10 @@ def send_files(idstr_sd_t):
             syslog.syslog(syslog.LOG_DEBUG, 'conn to sver fail, retry')
             retry = retry - 1
             time.sleep(2)
+	    if retry == 0:
+	        raise
+        else:
+            break
 
     
     # five files to transfer
