@@ -23,8 +23,10 @@ CMD_STRINGS = list()
 
 CMD_DKEY = "sar -n DEV", "iostat", "sar -B", "sar -P ALL", "vmstat"
 
-CMD_DVAL = "/tmp/sarnDEV-", "/tmp/iostat-", "/tmp/sarB-", "/tmp/sarPALL-",\
+CMD_DVAL = "/tmp/sarnDEV-", "/tmp/iostat-", "/tmp/sarB-", "/tmp/sarPALL-", \
             "/tmp/vmstat-"
+
+CMD_COUNT = 0
 
 # shark server addr, get from listen
 # shark server addr, get from listen
@@ -58,10 +60,7 @@ class SharkClientThread(threading.Thread):
 #
 def format_cmd_strings():
     '''assemble the command'''
-    global CMD_DKEY
-    global CMD_DVAL
     global CMD_STRINGS
-    global CMD_COUNT
 
     CMD_STRINGS = list()
     cmd_dict = dict(zip(CMD_DKEY, CMD_DVAL))
@@ -130,7 +129,7 @@ def get_idstr():
     if len(tmp_list) != 3:
         print 'recved idstring error'
         syslog.syslog(syslog.LOG_DEBUG, 'recved idstr error')
-    	exit()
+        exit()
 
     idstr = tmp_list[1] + '-' + host_name + '-' + dtstr 
     global CMD_COUNT
@@ -171,8 +170,8 @@ def send_files(idstr_sd_t):
             syslog.syslog(syslog.LOG_DEBUG, 'conn to sver fail, retry')
             retry = retry - 1
             time.sleep(2)
-	    if retry == 0:
-	        raise
+            if retry == 0:
+                raise
         else:
             break
 

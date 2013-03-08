@@ -274,7 +274,8 @@ def main():
     log_fmt = '%(process)d: %(asctime)s:%(levelname)s:%(funcName)s: %(message)s'
     log_file = '/home/zx/git/sharkserver.log'
     date_fmt = '%m%d-%H:%M:%S'
-    logging.basicConfig(filename=log_file, format=log_fmt, level=logging.DEBUG, datefmt = date_fmt)
+    logging.basicConfig(filename=log_file, format=log_fmt, \
+    level=logging.DEBUG, datefmt = date_fmt)
 
     # get idstr
     idstr = get_idstr()
