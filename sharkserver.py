@@ -12,7 +12,8 @@ import logging
 import time
 
 # get requestid string from user to uniq this request
-# and so is the cnt param
+# and so is the cnt and interval param
+# for example: sar [interval] [cnt]
 # for result file storage
 # interactive or read config file
 #
@@ -23,13 +24,18 @@ def get_idstr():
     while len(id_string) != 4:
         id_string = raw_input("input 4 chars request idstring:")
 
+    interval_str = raw_input("input count of cmd interval(less then 100):")
+    while interval_str.isdigit() != True or int(interval_str) > 100:
+        interval_str = raw_input("input count of cmd interval(less then 100):")
+
     cnt_string = raw_input("input counts of cmd repeat(less then 1000):")
     while cnt_string.isdigit() != True or int(cnt_string) > 1000:
         cnt_string = raw_input("input counts of cmd repeat(less then 1000):")
 
     cnt_string = repr(int(cnt_string) + 1000)
+    interval_str = repr(int(interval_str) + 100)
 
-    return '{0}+{1}'.format(id_string, cnt_string)
+    return '{0}+{1}+{2}'.format(id_string, cnt_string, interval_str)
 
 # read conf to get clientip list
 #

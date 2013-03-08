@@ -28,6 +28,8 @@ CMD_DVAL = "/tmp/sarnDEV-", "/tmp/iostat-", "/tmp/sarB-", "/tmp/sarPALL-", \
 
 CMD_COUNT = 0
 
+CMD_INTERVAL = 0
+
 # shark server addr, get from listen
 # shark server addr, get from listen
 #
@@ -65,8 +67,8 @@ def format_cmd_strings():
     CMD_STRINGS = list()
     cmd_dict = dict(zip(CMD_DKEY, CMD_DVAL))
     for cd_key in CMD_DKEY:
-        CMD_STRINGS.append('{0} 1 {1} > {2}'.format(cd_key, \
-    	repr(CMD_COUNT), cmd_dict[cd_key]))
+        CMD_STRINGS.append('{0} {1} {2} > {3}'.format(cd_key, \
+    	repr(CMD_INTERVAL), repr(CMD_COUNT), cmd_dict[cd_key]))
 
     print CMD_STRINGS
 
@@ -114,7 +116,7 @@ def get_idstr():
     # cmd socket to get cmd string
     #
     while True:
-        cmdstr = cmd_sock.recv(16)
+        cmdstr = cmd_sock.recv(20)
         if cmdstr[0:6] == 'qwe123':
             break
     
@@ -126,14 +128,16 @@ def get_idstr():
     cmdstr, server_addr))
 
     tmp_list = cmdstr.split('+')
-    if len(tmp_list) != 3:
+    if len(tmp_list) != 4:
         print 'recved idstring error'
         syslog.syslog(syslog.LOG_DEBUG, 'recved idstr error')
         exit()
 
     idstr = tmp_list[1] + '-' + host_name + '-' + dtstr 
     global CMD_COUNT
+    global CMD_INTERVAL
     CMD_COUNT = int(tmp_list[2]) - 1000
+    CMD_INTERVAL = int(tmp_list[3]) - 100
     #idstr = cmdstr[cmdstr.find("+")+1:] + '-' + host_name + '-' + dtstr 
     rt_t = (idstr, server_addr)
     return rt_t
